@@ -1,0 +1,52 @@
+#!/bin/bash
+
+BUILD_DIR=$1
+CACHE_DIR=$2
+ENV_DIR=$3
+
+HAPROXY_MAJOR=1.6
+HAPROXY_VERSION=1.6.5
+HAPROXY_MD5=5290f278c04e682e42ab71fed26fc082
+
+ARCHIVE=haproxy-${HAPROXY_VERSION}.tar.gz
+ARCHIVE_DIR=haproxy-${HAPROXY_VERSION}
+
+echo
+
+mkdir -p $CACHE_DIR
+
+if [ ! -e $CACHE_DIR/$ARCHIVE ]; then
+  echo "-----> Downloading ${ARCHIVE} from http://www.haproxy.org/..."
+  curl -sSL "http://www.haproxy.org/download/${HAPROXY_MAJOR}/src/haproxy-${HAPROXY_VERSION}.tar.gz" -o $CACHE_DIR/$ARCHIVE
+  echo "       Done"
+else
+  echo "-----> Using a locally cached copy of ${ARCHIVE}"
+fi
+
+if ! (echo "${HAPROXY_MD5}  ${CACHE_DIR}/${ARCHIVE}" | md5sum -c --quiet); then
+  echo " !     Failed to verify authenticity of ${ARCHIVE} (should be ${HAPROXY_MD5})"
+  exit 1
+fi
+
+if [ ! -d $CACHE_DIR/$ARCHIVE_DIR ]; then
+  echo "-----> Unpacking ${ARCHIVE} to ${CACHE_DIR}/${ARCHIVE_DIR}"
+  mkdir -p "${CACHE_DIR}/${ARCHIVE_DIR}"
+  tar -xzf "${CACHE_DIR}/${ARCHIVE}" -C "${CACHE_DIR}/${ARCHIVE_DIR}" --strip-components=1
+  echo "       Done"
+fi
+
+echo
+echo "-----> Compiling..."
+
+make -sC "${CACHE_DIR}/${ARCHIVE_DIR}" \
+	TARGET=linux2628 \
+	USE_PCRE=1 PCREDIR= \
+	USE_OPENSSL=1 \
+	USE_ZLIB=1 \
+  PREFIX=$BUILD_DIR \
+	all \
+	install-bin
+
+echo "       Done"
+
+exit 0
